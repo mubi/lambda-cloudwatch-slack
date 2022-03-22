@@ -2,6 +2,7 @@ var AWS = require('aws-sdk');
 var url = require('url');
 var https = require('https');
 var config = require('./config');
+var setSlackChannel = require('./slack-channel');
 var _ = require('lodash');
 var hookUrl;
 
@@ -394,6 +395,9 @@ var processEvent = function(event, context) {
   else{
     slackMessage = handleCatchAll(event, context);
   }
+
+  setSlackChannel(slackMessage, event);
+  console.log('slackMessage', JSON.stringify(slackMessage, undefined, 2));
 
   postMessage(slackMessage, function(response) {
     if (response.statusCode < 400) {
