@@ -232,7 +232,6 @@ var handleCloudWatch = function(event, context) {
   var timestamp = (new Date(event.Records[0].Sns.Timestamp)).getTime()/1000;
   var message = JSON.parse(event.Records[0].Sns.Message);
   var region = event.Records[0].EventSubscriptionArn.split(":")[3];
-  var subject = "AWS CloudWatch Notification";
   var alarmName = message.AlarmName;
   var metricName = message.Trigger.MetricName;
   var oldState = message.OldStateValue;
@@ -243,19 +242,27 @@ var handleCloudWatch = function(event, context) {
   var color = "warning";
 
   if (message.NewStateValue === "ALARM") {
-      color = "danger";
+    color = "danger";
   } else if (message.NewStateValue === "OK") {
-      color = "good";
+    color = "good";
+  }
+
+  const alarmUrl = `https://console.aws.amazon.com/cloudwatch/home?region=${region}#alarm:alarmFilter=ANY;name=${encodeURIComponent(alarmName)}`;
+
+  const optionalMessageFields = [];
+  if(alarmDescription != null && alarmDescription !== '') {
+    optionalMessageFields.push({
+      "title": "Alarm Description", "value": alarmDescription, "short": false
+    });
   }
 
   var slackMessage = {
-    text: "*" + subject + "*",
+    text: `*<${alarmUrl}|${alarmName}>*`,
     attachments: [
       {
         "color": color,
         "fields": [
-          { "title": "Alarm Name", "value": alarmName, "short": true },
-          { "title": "Alarm Description", "value": alarmDescription, "short": false},
+          ...optionalMessageFields,
           {
             "title": "Trigger",
             "value": trigger.Statistic + " "
@@ -264,20 +271,15 @@ var handleCloudWatch = function(event, context) {
               + trigger.Threshold + " for "
               + trigger.EvaluationPeriods + " period(s) of "
               + trigger.Period + " seconds.",
-              "short": false
-          },
-          { "title": "Old State", "value": oldState, "short": true },
-          { "title": "Current State", "value": newState, "short": true },
-          {
-            "title": "Link to Alarm",
-            "value": "https://console.aws.amazon.com/cloudwatch/home?region=" + region + "#alarm:alarmFilter=ANY;name=" + encodeURIComponent(alarmName),
             "short": false
-          }
+          },
+          { "title": "State Change", "value": `${oldState} -> ${newState}`, "short": true },
         ],
         "ts":  timestamp
       }
     ]
   };
+
   return _.merge(slackMessage, baseSlackMessage);
 };
 
